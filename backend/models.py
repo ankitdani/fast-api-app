@@ -1,14 +1,9 @@
-from pydantic import BaseModel
+from database import Base
+from sqlalchemy import Column, Integer, String
 
-class ItemBase(BaseModel):
-    name: str
-    description: str = None
+class Item(Base):
+    __tablename__ = "items"
 
-class ItemCreate(ItemBase):
-    pass
-
-class Item(ItemBase):
-    id: int
-
-    class Config:
-        orm_mode = True
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String, index=True)
+    description = Column(String, index=True)
