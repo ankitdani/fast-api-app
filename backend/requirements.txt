@@ -3,3 +3,4 @@ uvicorn==0.52.4
 sqlalchemy==2.0.52
 aiosqlite==0.22.1
 passlib==1.7.4
+PyJWT ==2.13.0
