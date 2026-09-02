@@ -9,6 +9,7 @@ class ItemCreate(ItemBase):
 
 class Item(ItemBase):
     id: int
+    user_id: int
 
     class Config:
         from_attributes = True
