@@ -20,4 +20,4 @@ jobs:
         working-directory: backend
         env:
           SECRET_KEY: ${{secrets.SECRET_KEY}}
-        run: pytest tests/
+        run: python -m pytest tests/
