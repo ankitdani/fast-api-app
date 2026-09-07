@@ -8,6 +8,7 @@ from fastapi import HTTPException
 from schemas import UserCreate
 from tasks import notify_item_created
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm 
+from llm import summarize_items
 
 models.Base.metadata.create_all(bind=engine)
 
@@ -62,6 +63,16 @@ def create_item(item: schemas.ItemCreate, db: Session = Depends(get_db),
     db.refresh(db_item)
     notify_item_created.delay(db_item.id, db_item.name)
     return db_item
+
+@app.get("/items/summary")
+def get_items_summary(db: Session = Depends(get_db),
+                      current_user: models.User = Depends(get_current_user)):
+    items = db.query(models.Item).filter(current_user.id == models.Item.user_id).all()
+    if not items:
+        return {"summary": "You have no items yet."}
+    item_names = [item.name for item in items]
+    summary = summarize_items(item_names)
+    return {"summary": summary}
 
 @app.delete("/items/{item_id}")
 def delete_item(item_id: int, db: Session = Depends(get_db),
