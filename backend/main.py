@@ -6,6 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 from fastapi import HTTPException
 from schemas import UserCreate
+from tasks import notify_item_created
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm 
 
 models.Base.metadata.create_all(bind=engine)
@@ -59,6 +60,7 @@ def create_item(item: schemas.ItemCreate, db: Session = Depends(get_db),
     db.add(db_item)
     db.commit()
     db.refresh(db_item)
+    notify_item_created.delay(db_item.id, db_item.name)
     return db_item
 
 @app.delete("/items/{item_id}")
