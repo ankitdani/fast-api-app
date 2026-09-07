@@ -1,0 +1,45 @@
+(backend) PS C:\Users\Work\Documents\projects\fastapi CRUD\backend> uv run python llm.py
+Reply: The user owns a laptop, a notebook, and a coffee mug.
+Model used: openai/gpt-oss-120b
+Tokens: 170
+(backend) PS C:\Users\Work\Documents\projects\fastapi CRUD\backend> uv run python llm.py
+Reply: User owns a laptop, a notebook, and a coffee mug.
+Model used: openai/gpt-oss-20b
+Tokens: 153
+(backend) PS C:\Users\Work\Documents\projects\fastapi CRUD\backend> uv run python llm.py
+Reply: The user owns a laptop, a notebook, and a coffee mug.
+Model used: groq/compound
+Tokens: 370
+(backend) PS C:\Users\Work\Documents\projects\fastapi CRUD\backend> uv run python llm.py
+Reply: The user owns three items: a laptop, a notebook, and a coffee mug.
+Model used: groq/compound-mini
+Tokens: 595
+(backend) PS C:\Users\Work\Documents\projects\fastapi CRUD\backend> uv run python llm.py
+Traceback (most recent call last):
+  File "C:\Users\Work\Documents\projects\fastapi CRUD\backend\llm.py", line 14, in <module>
+    response = client.chat.completions.create(
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Work\Documents\projects\fastapi CRUD\backend\.venv\Lib\site-packages\groq\resources\chat\completions.py", line 466, in create
+    return self._post(
+           ^^^^^^^^^^^
+  File "C:\Users\Work\Documents\projects\fastapi CRUD\backend\.venv\Lib\site-packages\groq\_base_client.py", line 1284, in post
+    return cast(ResponseT, self.request(cast_to, opts, stream=stream, stream_cls=stream_cls))
+                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Work\Documents\projects\fastapi CRUD\backend\.venv\Lib\site-packages\groq\_base_client.py", line 1071, in request
+    raise self._make_status_error_from_response(err.response) from None
+groq.NotFoundError: Error code: 404 - {'error': {'message': 'The model `llama-3.3-70b-versatile` does not exist or you do not have access to it.', 'type': 'invalid_request_error', 'code': 'model_not_found'}}
+(backend) PS C:\Users\Work\Documents\projects\fastapi CRUD\backend> uv run python llm.py
+Traceback (most recent call last):
+  File "C:\Users\Work\Documents\projects\fastapi CRUD\backend\llm.py", line 14, in <module>
+    response = client.chat.completions.create(
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Work\Documents\projects\fastapi CRUD\backend\.venv\Lib\site-packages\groq\resources\chat\completions.py", line 466, in create
+    return self._post(
+           ^^^^^^^^^^^
+  File "C:\Users\Work\Documents\projects\fastapi CRUD\backend\.venv\Lib\site-packages\groq\_base_client.py", line 1284, in post
+    return cast(ResponseT, self.request(cast_to, opts, stream=stream, stream_cls=stream_cls))
+                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Work\Documents\projects\fastapi CRUD\backend\.venv\Lib\site-packages\groq\_base_client.py", line 1071, in request
+    raise self._make_status_error_from_response(err.response) from None
+groq.NotFoundError: Error code: 404 - {'error': {'message': 'The model `llama-3.1-8b-instant` does not exist or you do not have access to it.', 'type': 'invalid_request_error', 'code': 'model_not_found'}}
+(backend) PS C:\Users\Work\Documents\projects\fastapi CRUD\backend> 
