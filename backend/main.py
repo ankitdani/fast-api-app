@@ -5,10 +5,11 @@ from fastapi import FastAPI, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 from fastapi import HTTPException
-from schemas import UserCreate
+from schemas import UserCreate, ChatRequest
 from tasks import notify_item_created
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm 
-from llm import summarize_items
+from llm import summarize_items, chat_with_tools, list_item_tool, delete_item_tool
+import json
 
 models.Base.metadata.create_all(bind=engine)
 
@@ -73,6 +74,32 @@ def get_items_summary(db: Session = Depends(get_db),
     item_names = [item.name for item in items]
     summary = summarize_items(item_names)
     return {"summary": summary}
+
+@app.post("/items/chat")
+def chat(request: ChatRequest, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
+    message = chat_with_tools(request.message, tools=[list_item_tool, delete_item_tool])
+    if message.tool_calls:
+        tool_call = message.tool_calls[0]
+        name = tool_call.function.name
+
+        if name == "list_items":
+            items = db.query(models.Item).filter(current_user.id == models.Item.user_id).all()
+            return {"tool_called": "list_items", "result": [item.name for item in items]}
+
+        if name == "delete_item":
+            args = json.loads(tool_call.function.arguments)
+            item = db.query(models.Item).filter(args["item_id"] == models.Item.id).first()
+            if item is None:
+                return {"reply": "The item doesn't exist."}
+            return {
+                "requires_confirmation": True,
+                "action": "delete_item",
+                "item_id": item.id,
+                "item_name": item.name,
+                "message": f"About to delete '{item.name}'. Confirm?"
+            }
+        
+    return {"reply": message.content}
 
 @app.delete("/items/{item_id}")
 def delete_item(item_id: int, db: Session = Depends(get_db),
