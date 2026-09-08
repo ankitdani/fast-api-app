@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 class ItemBase(BaseModel):
     name: str
@@ -30,3 +30,6 @@ class User(UserBase):
 class Token(BaseModel):
     access_token: str
     token_type: str
+
+class ChatRequest(BaseModel):
+    message: str = Field(..., max_length=500)
