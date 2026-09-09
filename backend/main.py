@@ -8,7 +8,7 @@ from fastapi import HTTPException
 from schemas import UserCreate, ChatRequest
 from tasks import notify_item_created
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm 
-from llm import summarize_items, chat_with_tools, list_item_tool, delete_item_tool
+from llm import summarize_items, chat_with_tools, list_item_tool, delete_item_tool, list_all_users_tool, get_reply_after_tool
 import json
 
 models.Base.metadata.create_all(bind=engine)
@@ -77,20 +77,26 @@ def get_items_summary(db: Session = Depends(get_db),
 
 @app.post("/items/chat")
 def chat(request: ChatRequest, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
-    message = chat_with_tools(request.message, tools=[list_item_tool, delete_item_tool])
+    tool_list = [list_item_tool, delete_item_tool]
+    if current_user.role == "admin":
+        tool_list.append(list_all_users_tool)
+
+    message, messages = chat_with_tools(request.message, tools=tool_list)
     if message.tool_calls:
         tool_call = message.tool_calls[0]
         name = tool_call.function.name
 
         if name == "list_items":
             items = db.query(models.Item).filter(current_user.id == models.Item.user_id).all()
-            return {"tool_called": "list_items", "result": [item.name for item in items]}
+            result = [item.name for item in items]
+            reply = get_reply_after_tool(messages, message, tool_call.id, result)
+            return {"reply": reply}
 
         if name == "delete_item":
             args = json.loads(tool_call.function.arguments)
             item = db.query(models.Item).filter(args["item_id"] == models.Item.id).first()
             if item is None:
-                return {"reply": "The item doesn't exist."}
+                raise HTTPException(status_code=403, detail="The item doesn't exist.")
             return {
                 "requires_confirmation": True,
                 "action": "delete_item",
@@ -98,7 +104,15 @@ def chat(request: ChatRequest, db: Session = Depends(get_db), current_user: mode
                 "item_name": item.name,
                 "message": f"About to delete '{item.name}'. Confirm?"
             }
-        
+        if name == "list_all_users":
+            if current_user.role == "admin":
+                users = db.query(models.User).offset(0).limit(100).all()
+                result = [user.username for user in users]
+                reply = get_reply_after_tool(messages, message, tool_call.id, result)
+                return {"reply": reply}
+            else:
+                raise HTTPException(status_code=403, detail="You are not an admin.")
+            
     return {"reply": message.content}
 
 @app.delete("/items/{item_id}")
