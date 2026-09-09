@@ -2,6 +2,7 @@ from dotenv import load_dotenv
 from groq import Groq
 
 import os
+import json
 
 load_dotenv()
 
@@ -42,6 +43,19 @@ delete_item_tool = {
     }
 }
 
+list_all_users_tool = {
+    "type": "function",
+    "function": {
+        "name": "list_all_users",
+        "description": "List all users if the user role is admin.",
+        "parameters": {
+            "type": "object",
+            "properties": {},
+            "required": []
+        },
+    }
+}
+
 def summarize_items(item_names: list[str]) -> str:
 
     items_text = ", ".join(item_names)
@@ -64,23 +78,41 @@ def summarize_items(item_names: list[str]) -> str:
     return response.choices[0].message.content
 
 def chat_with_tools(user_message: str, tools: list):
+    message_list=[
+        {
+            "role": "system",
+            "content": "You help manage inventory items."
+        },
+        {
+            "role": "user",
+            "content": user_message
+        }
+    ]
     response = client.chat.completions.create(
-        messages=[
-            {
-                "role": "system",
-                "content": "You help manage inventory items."
-            },
-            {
-                "role": "user",
-                "content": user_message
-            }
-        ],
+        messages=message_list,
         model="openai/gpt-oss-20b",
         max_tokens=600,
         tools=tools
     )
-    return response.choices[0].message
-    
+    return response.choices[0].message, message_list
+
+def get_reply_after_tool(messages: list, assistant_message, tool_call_id: str, tool_result):
+    messages.append({
+        "role": "assistant",
+        "content": assistant_message.content,
+        "tool_calls": [tc.model_dump() for tc in assistant_message.tool_calls]
+    })
+    messages.append({
+        "role": "tool",
+        "tool_call_id": tool_call_id,
+        "content": json.dumps(tool_result)
+    })
+    response = client.chat.completions.create(
+        messages=messages,
+        model="openai/gpt-oss-20b",
+        max_tokens=600
+    )
+    return response.choices[0].message.content
 
 # if __name__ == "__main__":
 #     print("Item summary:", summarize_items(["laptop","notebook","coffee mug"]))
