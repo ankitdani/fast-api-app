@@ -8,8 +8,10 @@ from fastapi import HTTPException
 from schemas import UserCreate, ChatRequest
 from tasks import notify_item_created
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm 
-from llm import summarize_items, chat_with_tools, list_item_tool, delete_item_tool, list_all_users_tool, get_reply_after_tool
+from llm import summarize_items, chat_with_tools, list_item_tool, delete_item_tool, list_all_users_tool, get_reply_after_tool, search_items_tool
 import json
+from rag import index_item, vectorstore
+from logging_config import logger
 
 models.Base.metadata.create_all(bind=engine)
 
@@ -63,6 +65,7 @@ def create_item(item: schemas.ItemCreate, db: Session = Depends(get_db),
     db.commit()
     db.refresh(db_item)
     notify_item_created.delay(db_item.id, db_item.name)
+    index_item(db_item)
     return db_item
 
 @app.get("/items/summary")
@@ -77,7 +80,7 @@ def get_items_summary(db: Session = Depends(get_db),
 
 @app.post("/items/chat")
 def chat(request: ChatRequest, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
-    tool_list = [list_item_tool, delete_item_tool]
+    tool_list = [list_item_tool, delete_item_tool, search_items_tool]
     if current_user.role == "admin":
         tool_list.append(list_all_users_tool)
 
@@ -112,7 +115,14 @@ def chat(request: ChatRequest, db: Session = Depends(get_db), current_user: mode
                 return {"reply": reply}
             else:
                 raise HTTPException(status_code=403, detail="You are not an admin.")
-            
+
+        if name == "search_items":
+            args = json.loads(tool_call.function.arguments)
+            results = vectorstore.similarity_search(args["query"], k = 3, filter={"user_id": current_user.id})
+            result = [doc.page_content for doc in results]
+            reply = get_reply_after_tool(messages, message, tool_call.id, result)
+            return {"reply": reply}
+        
     return {"reply": message.content}
 
 @app.delete("/items/{item_id}")
