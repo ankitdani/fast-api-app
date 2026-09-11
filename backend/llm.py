@@ -56,6 +56,24 @@ list_all_users_tool = {
     }
 }
 
+search_items_tool = {
+    "type": "function",
+    "function": {
+        "name": "search_items",
+        "description": "Semantically search the current user's inventory by meaning, for vague or descriptive questions (e.g. 'anything for cold weather') where an exact name match wouldn't work.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "query": {
+                    "type": "string",
+                    "description": "What to search for, in user's own words."
+                }
+            },
+            "required": ["query"]
+        }
+    }
+}
+
 def summarize_items(item_names: list[str]) -> str:
 
     items_text = ", ".join(item_names)
