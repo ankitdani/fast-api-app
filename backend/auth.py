@@ -1,9 +1,15 @@
 from datetime import datetime, timedelta, timezone
+from fastapi import Depends, HTTPException
+from fastapi.security import OAuth2PasswordBearer
 from passlib.context import CryptContext
 import jwt
 from dotenv import load_dotenv
 import os
+import models
+
+from sqlalchemy.orm import Session
 load_dotenv()
+from database import get_db
 
 SECRET_KEY = os.getenv("SECRET_KEY")
 ALGORITHM="HS256"
@@ -34,3 +40,20 @@ def decode_token(token: str):
         return None
     except jwt.InvalidTokenError:
         return None
+
+def get_current_user(token: str = Depends(OAuth2PasswordBearer(tokenUrl="users/login")),
+                     db: Session = Depends(get_db)):
+    user = decode_token(token)
+    if not user:
+        raise HTTPException(
+            status_code=401,
+            detail="Could not validate user credentials",
+            headers={"WWW-Authenticate": "Bearer"}
+        )
+    username = user.get("sub")
+    db_user = db.query(models.User).filter(models.User.username == username).first()
+    if db_user is None:
+        raise HTTPException(status_code=401,
+                            detail="user not found",
+                            headers={"WWW-Authenticate": "Bearer"})
+    return db_user
