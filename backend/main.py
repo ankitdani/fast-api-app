@@ -1,4 +1,4 @@
-from auth import create_hash_password, create_jwt_token, verify_password, decode_token
+from auth import get_current_user, create_hash_password, create_jwt_token, verify_password, decode_token
 import models, schemas
 from database import engine, SessionLocal
 from fastapi import FastAPI, Depends
@@ -13,6 +13,9 @@ import json
 from rag import index_item, vectorstore
 import logging_config
 import structlog
+import redis
+from database import get_db
+from rate_limit import token_bucket_rate_limiter
 
 logger = structlog.getLogger(__name__)
 
@@ -33,31 +36,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
-
-
-def get_current_user(token: str = Depends(OAuth2PasswordBearer(tokenUrl="users/login")),
-                     db: Session = Depends(get_db)):
-    user = decode_token(token)
-    if not user:
-        raise HTTPException(
-            status_code=401,
-            detail="Could not validate user credentials",
-            headers={"WWW-Authenticate": "Bearer"}
-        )
-    username = user.get("sub")
-    db_user = db.query(models.User).filter(models.User.username == username).first()
-    if db_user is None:
-        raise HTTPException(status_code=401,
-                            detail="user not found",
-                            headers={"WWW-Authenticate": "Bearer"})
-    return db_user
 
 @app.post("/items/", response_model=schemas.Item)
 def create_item(item: schemas.ItemCreate, db: Session = Depends(get_db),
@@ -82,7 +60,7 @@ def get_items_summary(db: Session = Depends(get_db),
     return {"summary": summary}
 
 @app.post("/items/chat")
-def chat(request: ChatRequest, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
+def chat(request: ChatRequest, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user), _:None = Depends(token_bucket_rate_limiter)):
     logger.info("chat_requested", user=current_user.username, message=request.message)
     tool_list = [list_item_tool, delete_item_tool, search_items_tool]
     if current_user.role == "admin":
