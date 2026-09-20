@@ -1,7 +1,9 @@
+from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
+from grafana_monitoring import track_metrics
 from auth import get_current_user, create_hash_password, create_jwt_token, verify_password, decode_token
 import models, schemas
 from database import engine, SessionLocal
-from fastapi import FastAPI, Depends
+from fastapi import FastAPI, Depends, Response
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 from fastapi import HTTPException
@@ -22,6 +24,7 @@ logger = structlog.getLogger(__name__)
 models.Base.metadata.create_all(bind=engine)
 
 app = FastAPI()
+app.middleware("http")(track_metrics)
 
 origins = [
     "http://localhost",
@@ -183,3 +186,9 @@ def login(db: Session = Depends(get_db), form_data: OAuth2PasswordRequestForm = 
         raise HTTPException(status_code=401, detail="User login failed")
     tkn = create_jwt_token({"sub": db_user.username, "role": db_user.role})
     return {"access_token": tkn, "token_type": "bearer"}
+
+@app.get("/metrics")
+def metrics(current_user: models.User = Depends(get_current_user)):
+    if current_user.role != "admin":
+        raise HTTPException(status_code=403, detail="Admin access required.")
+    return Response(generate_latest(), media_type=CONTENT_TYPE_LATEST)
