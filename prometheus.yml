@@ -1,0 +1,8 @@
+global:
+  scrape_interval: 15s
+
+scrape_configs:
+  - job_name: "fastapi-backend"
+    static_configs:
+      - targets: ["backend:8000"]
+    bearer_token: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJtb25pdG9yaW5nIiwicm9sZSI6ImFkbWluIiwiZXhwIjoxODIxMjQ0MDAwfQ.zEOCgWmQ11e2OXY-VB3WNgf5Z8wts8qOujYKqLNCDtE"
