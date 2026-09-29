@@ -18,6 +18,8 @@ import structlog
 import redis
 from database import get_db
 from rate_limit import token_bucket_rate_limiter
+from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
+import tracing
 
 logger = structlog.getLogger(__name__)
 
@@ -25,6 +27,7 @@ models.Base.metadata.create_all(bind=engine)
 
 app = FastAPI()
 app.middleware("http")(track_metrics)
+FastAPIInstrumentor.instrument_app(app)
 
 origins = [
     "http://localhost",
