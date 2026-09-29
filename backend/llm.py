@@ -1,5 +1,6 @@
 from dotenv import load_dotenv
 from groq import Groq
+from tracing import tracer
 
 import os
 import json
@@ -106,12 +107,13 @@ def chat_with_tools(user_message: str, tools: list):
             "content": user_message
         }
     ]
-    response = client.chat.completions.create(
-        messages=message_list,
-        model="openai/gpt-oss-20b",
-        max_tokens=600,
-        tools=tools
-    )
+    with tracer.start_as_current_span("call_groq"):
+        response = client.chat.completions.create(
+            messages=message_list,
+            model="openai/gpt-oss-20b",
+            max_tokens=600,
+            tools=tools
+        )
     return response.choices[0].message, message_list
 
 def get_reply_after_tool(messages: list, assistant_message, tool_call_id: str, tool_result):
