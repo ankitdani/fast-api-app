@@ -1,38 +1,36 @@
 # AI-Ledger
 
 A full-stack FastAPI backend with a hand-built LLM tool-calling agent, RAG-powered semantic
-search, and production-grade guardrails — rate limiting, structured logging, metrics, and
-distributed tracing — backed by a React/TypeScript frontend. Built as a deep, from-scratch
-learning project: every bug was found and fixed by reading the actual error, not copy-pasted
-from a tutorial.
+search, and production-grade guardrails (rate limiting, structured logging, metrics, distributed
+tracing), backed by a React/TypeScript frontend.
 
-> Full build log, every bug hit and fixed, and the reasoning behind every technical decision
-> lives in [`PROJECT_NOTES.md`](./PROJECT_NOTES.md) — this README is the overview; that file is
+> The full build log, every bug hit and fixed, and the reasoning behind each technical decision
+> lives in [`PROJECT_NOTES.md`](./PROJECT_NOTES.md). This README is the overview; that file is
 > the detailed engineering journal.
 
 ## What's in here
 
-- **A hand-written LLM agent**, not a framework's `AgentExecutor` — the tool-calling loop
-  (describe tools as JSON schemas → model requests one → your code decides whether/how to run
-  it → feed the result back for a natural-language reply) is built from first principles, so the
-  mechanism is actually understood rather than hidden behind a library call.
-- **Role-scoped tools** — which tools even get sent to the model is built dynamically from the
-  caller's role. A model literally can't call a tool it was never told exists.
-- **Human-in-the-loop confirmation** for destructive actions — a tool *requesting* a delete is
-  never the same as it *happening*; the agent proposes, the user confirms, a second explicit call
-  executes it.
-- **RAG via pgvector + LangChain** — genuine semantic search over inventory items (a query like
+- **A hand-written LLM agent**, not a framework's `AgentExecutor`. The tool-calling loop (describe
+  tools as JSON schemas, the model requests one, your code decides whether and how to run it,
+  then feeds the result back for a natural-language reply) is built from first principles, so the
+  mechanism is actually understood instead of hidden behind a library call.
+- **Role-scoped tools.** Which tools even get sent to the model is built dynamically from the
+  caller's role. A model can't call a tool it was never told exists.
+- **Human-in-the-loop confirmation** for destructive actions. A tool requesting a delete is not
+  the same as it happening: the agent proposes, the user confirms, a second explicit call executes
+  it.
+- **RAG via pgvector and LangChain.** Genuine semantic search over inventory items (a query like
   "something to keep me warm" matches an item named "sweater," with zero keyword overlap),
-  filtered per-user so search never leaks one user's data to another.
-- **Redis-backed token-bucket rate limiting** on the agent endpoint, chosen deliberately over a
-  simpler fixed-window counter to avoid its known boundary-burst weakness.
-- **Full observability, all three pillars**: structured JSON logs (`structlog`), metrics
-  (Prometheus + Grafana), and distributed tracing (OpenTelemetry + Jaeger) — not just logging
-  tacked on, but logs/metrics/traces each doing the job only they're suited for.
-- **A real auth system**: JWT + bcrypt, role-based authorization, ownership checks on every
-  mutation, mass-assignment-proof schemas.
-- **A working React frontend** — login/register, full CRUD, and a chat UI that handles both plain
-  agent replies and the delete-confirmation flow, styled with Tailwind.
+  filtered per user so search never leaks one person's data to another.
+- **Redis-backed token-bucket rate limiting** on the agent endpoint, chosen over a simpler
+  fixed-window counter to avoid its known boundary-burst weakness.
+- **All three observability pillars**: structured JSON logs (structlog), metrics (Prometheus and
+  Grafana), and distributed tracing (OpenTelemetry and Jaeger), each doing the job only it's
+  suited for.
+- **A real auth system**: JWT plus bcrypt, role-based authorization, ownership checks on every
+  mutation, schemas that can't be mass-assigned.
+- **A working React frontend**: login and register, full CRUD, and a chat UI that handles both
+  plain agent replies and the delete-confirmation flow, styled with Tailwind.
 
 ## Tech stack
 
@@ -103,7 +101,7 @@ GROQ_API_KEY=<your Groq API key>
 docker-compose up -d
 ```
 
-This brings up: the FastAPI backend (`:8000`), Postgres+pgvector, Redis, a Celery worker,
+This brings up the FastAPI backend (`:8000`), Postgres+pgvector, Redis, a Celery worker,
 Prometheus (`:9090`), Grafana (`:3000`), and Jaeger (`:16686`).
 
 ### 3. Start the frontend
@@ -120,8 +118,8 @@ Open the printed URL (typically `http://localhost:5173`).
 
 - Register a user, log in.
 - Create a few items.
-- Ask the chat something like *"what items do I have?"* or *"anything to keep me warm?"* (RAG
-  search) or *"delete my \<item\>"* (triggers the confirm-first flow).
+- Ask the chat something like "what items do I have?" or "anything to keep me warm?" (RAG
+  search), or "delete my \<item\>" (triggers the confirm-first flow).
 - Check `http://localhost:9090` (Prometheus), `http://localhost:3000` (Grafana), and
   `http://localhost:16686` (Jaeger) to see the observability stack in action.
 
@@ -134,7 +132,7 @@ Open the printed URL (typically `http://localhost:5173`).
 | `GET` / `POST` | `/items/` | List / create items (owner-scoped) |
 | `GET` / `PUT` / `DELETE` | `/items/{id}` | Read, update, delete one item (ownership + role checked) |
 | `GET` | `/items/summary` | LLM-generated summary of your items |
-| `POST` | `/items/chat` | The agent — tool-calling, RAG search, human-in-the-loop delete, rate-limited |
+| `POST` | `/items/chat` | The agent: tool-calling, RAG search, human-in-the-loop delete, rate-limited |
 | `GET` | `/metrics` | Prometheus scrape target (admin-only) |
 
 ## Project layout
@@ -158,20 +156,16 @@ frontend/
 docker-compose.yml
 prometheus.yml
 .github/workflows/ci.yml
-PROJECT_NOTES.md          # the full build log — every bug, every decision, why
+PROJECT_NOTES.md          # the full build log: every bug, every decision, why
 TALKING_POINTS.md         # interview talking points per concept implemented
 ```
 
 ## Known limitations
 
-A handful of things are tracked as deliberate, documented gaps rather than silent omissions —
-full detail in [`PROJECT_NOTES.md`](./PROJECT_NOTES.md#known-deliberate-limitations-not-bugs--decisions-made-along-the-way):
+A few things are tracked as deliberate, documented gaps rather than silent omissions. Full
+detail in [`PROJECT_NOTES.md`](./PROJECT_NOTES.md#known-deliberate-limitations-not-bugs--decisions-made-along-the-way):
 
 - The rate limiter's read-modify-write isn't yet atomic (a Lua-script fix is drafted, not wired in).
 - A custom trace span around the LLM call isn't showing up in Jaeger yet (open bug).
 - A frontend delete-confirmation edge case where a deleted item can still briefly appear in lists.
 - `GET /users/` currently has no auth check.
-
-## License
-
-Personal learning project — no license applied.
