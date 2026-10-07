@@ -1,4 +1,4 @@
-# AgentForge
+# AI-Ledger
 
 A full-stack FastAPI backend with a hand-built LLM tool-calling agent, RAG-powered semantic
 search, and production-grade guardrails — rate limiting, structured logging, metrics, and
