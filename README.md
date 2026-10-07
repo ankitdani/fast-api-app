@@ -4,10 +4,6 @@ A full-stack FastAPI backend with a hand-built LLM tool-calling agent, RAG-power
 search, and production-grade guardrails (rate limiting, structured logging, metrics, distributed
 tracing), backed by a React/TypeScript frontend.
 
-> The full build log, every bug hit and fixed, and the reasoning behind each technical decision
-> lives in [`PROJECT_NOTES.md`](./PROJECT_NOTES.md). This README is the overview; that file is
-> the detailed engineering journal.
-
 ## What's in here
 
 - **A hand-written LLM agent**, not a framework's `AgentExecutor`. The tool-calling loop (describe
@@ -84,7 +80,7 @@ Every service above runs as its own container, wired together by `docker-compose
 
 ### Prerequisites
 - Docker + Docker Compose
-- Node.js (for the frontend)
+- Node.js (to run the React frontend)
 - A free [Groq API key](https://console.groq.com)
 
 ### 1. Configure environment variables
@@ -156,14 +152,11 @@ frontend/
 docker-compose.yml
 prometheus.yml
 .github/workflows/ci.yml
-PROJECT_NOTES.md          # the full build log: every bug, every decision, why
-TALKING_POINTS.md         # interview talking points per concept implemented
 ```
 
 ## Known limitations
 
-A few things are tracked as deliberate, documented gaps rather than silent omissions. Full
-detail in [`PROJECT_NOTES.md`](./PROJECT_NOTES.md#known-deliberate-limitations-not-bugs--decisions-made-along-the-way):
+A few things are tracked as deliberate, documented gaps rather than silent omissions:
 
 - The rate limiter's read-modify-write isn't yet atomic (a Lua-script fix is drafted, not wired in).
 - A custom trace span around the LLM call isn't showing up in Jaeger yet (open bug).
