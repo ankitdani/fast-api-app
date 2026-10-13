@@ -12,7 +12,6 @@ from tasks import notify_item_created
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm 
 from llm import summarize_items, chat_with_tools, list_item_tool, delete_item_tool, list_all_users_tool, get_reply_after_tool, search_items_tool
 import json
-from rag import index_item, vectorstore
 import logging_config
 import structlog
 import redis
@@ -20,6 +19,7 @@ from database import get_db
 from rate_limit import token_bucket_rate_limiter
 from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
 import tracing
+from rag import index_item, vectorstore, delete_item_embedding
 
 logger = structlog.getLogger(__name__)
 
@@ -131,6 +131,7 @@ def delete_item(item_id: int, db: Session = Depends(get_db),
         raise HTTPException(status_code=403, detail="unauthorized to delete")
     db.delete(db_item)
     db.commit()
+    delete_item_embedding(item_id)
     return {"message": f"Item id {item_id} has been deleted"}
 
 @app.get("/items/{item_id}", response_model=schemas.Item)
