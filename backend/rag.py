@@ -21,6 +21,9 @@ def index_item(item):
         ids=[str(item.id)]
     )
 
+def delete_item_embedding(item_id):
+    vectorstore.delete(ids=[str(item_id)])
+
 if __name__ == "__main__":
     vector = embeddings.embed_query("wool sweater")
     print(len(vector), vector[:5])
