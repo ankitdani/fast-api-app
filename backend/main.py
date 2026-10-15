@@ -20,6 +20,7 @@ from rate_limit import token_bucket_rate_limiter
 from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
 import tracing
 from rag import index_item, vectorstore, delete_item_embedding
+from groq import APIError
 
 logger = structlog.getLogger(__name__)
 
@@ -71,55 +72,58 @@ def chat(request: ChatRequest, db: Session = Depends(get_db), current_user: mode
     tool_list = [list_item_tool, delete_item_tool, search_items_tool]
     if current_user.role == "admin":
         tool_list.append(list_all_users_tool)
+    try:
+        message, messages = chat_with_tools(request.message, tools=tool_list)
+        if message.tool_calls:
 
-    message, messages = chat_with_tools(request.message, tools=tool_list)
-    if message.tool_calls:
+            tool_call = message.tool_calls[0]
+            name = tool_call.function.name
+            logger.info("tool_selected", tool_name=name)
 
-        tool_call = message.tool_calls[0]
-        name = tool_call.function.name
-        logger.info("tool_selected", tool_name=name)
-
-        if name == "list_items":
-            items = db.query(models.Item).filter(current_user.id == models.Item.user_id).all()
-            result = [item.name for item in items]
-            reply = get_reply_after_tool(messages, message, tool_call.id, result)
-            logger.info("list_items_reply", reply=reply)
-            return {"reply": reply}
-
-        if name == "delete_item":
-            args = json.loads(tool_call.function.arguments)
-            item = db.query(models.Item).filter(args["item_id"] == models.Item.id).first()
-            
-            if item is None:
-                raise HTTPException(status_code=403, detail="The item doesn't exist.")
-            logger.info("requested_delete_item", item_name=item.name)
-            return {
-                "requires_confirmation": True,
-                "action": "delete_item",
-                "item_id": item.id,
-                "item_name": item.name,
-                "message": f"About to delete '{item.name}'. Confirm?"
-            }
-        if name == "list_all_users":
-            if current_user.role == "admin":
-                users = db.query(models.User).offset(0).limit(100).all()
-                result = [user.username for user in users]
+            if name == "list_items":
+                items = db.query(models.Item).filter(current_user.id == models.Item.user_id).all()
+                result = [item.name for item in items]
                 reply = get_reply_after_tool(messages, message, tool_call.id, result)
-                logger.info("list_users_reply", reply=reply)
+                logger.info("list_items_reply", reply=reply)
                 return {"reply": reply}
-            else:
-                raise HTTPException(status_code=403, detail="You are not an admin.")
 
-        if name == "search_items":
-            args = json.loads(tool_call.function.arguments)
-            results = vectorstore.similarity_search(args["query"], k = 3, filter={"user_id": current_user.id})
-            result = [doc.page_content for doc in results]
-            reply = get_reply_after_tool(messages, message, tool_call.id, result)
-            logger.info("search_items_reply", reply=reply)
-            return {"reply": reply}
+            if name == "delete_item":
+                args = json.loads(tool_call.function.arguments)
+                item = db.query(models.Item).filter(args["item_id"] == models.Item.id).first()
+                
+                if item is None:
+                    raise HTTPException(status_code=403, detail="The item doesn't exist.")
+                logger.info("requested_delete_item", item_name=item.name)
+                return {
+                    "requires_confirmation": True,
+                    "action": "delete_item",
+                    "item_id": item.id,
+                    "item_name": item.name,
+                    "message": f"About to delete '{item.name}'. Confirm?"
+                }
+            if name == "list_all_users":
+                if current_user.role == "admin":
+                    users = db.query(models.User).offset(0).limit(100).all()
+                    result = [user.username for user in users]
+                    reply = get_reply_after_tool(messages, message, tool_call.id, result)
+                    logger.info("list_users_reply", reply=reply)
+                    return {"reply": reply}
+                else:
+                    raise HTTPException(status_code=403, detail="You are not an admin.")
 
-    logger.info("chat_direct_reply", message=message.content)
-    return {"reply": message.content}
+            if name == "search_items":
+                args = json.loads(tool_call.function.arguments)
+                results = vectorstore.similarity_search(args["query"], k = 3, filter={"user_id": current_user.id})
+                result = [doc.page_content for doc in results]
+                reply = get_reply_after_tool(messages, message, tool_call.id, result)
+                logger.info("search_items_reply", reply=reply)
+                return {"reply": reply}
+
+        logger.info("chat_direct_reply", message=message.content)
+        return {"reply": message.content}
+    except APIError as e:
+        logger.info("groq_api_error", error=str(e))
+        raise HTTPException(status_code=503, detail="The AI service is temporarily unavailable. Please try again.")
 
 @app.delete("/items/{item_id}")
 def delete_item(item_id: int, db: Session = Depends(get_db),
@@ -160,6 +164,8 @@ def update_item(item_id:int, item: schemas.ItemCreate, db : Session = Depends(ge
         setattr(db_item, key, val)
     db.commit()
     db.refresh(db_item)
+    delete_item_embedding(item_id)
+    index_item(db_item)
     return db_item
 
 @app.post("/users/register", response_model=schemas.User)
