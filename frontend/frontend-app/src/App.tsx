@@ -49,7 +49,7 @@ function App() {
     }
   };
 
-  const handelLogin = async () => {
+  const handleLogin = async () => {
     try {
       const accessToken = await login(username, password);
       localStorage.setItem("token", accessToken);
@@ -187,8 +187,8 @@ function App() {
         </button>
         {token && <span>Sign Up Successful!</span>}
         <button
-          className="g-blue-700 text-white px-4 py-2 rounded"
-          onClick={handelLogin}
+          className="bg-blue-700 text-white px-4 py-2 rounded"
+          onClick={handleLogin}
         >
           Login
         </button>
@@ -247,9 +247,11 @@ function App() {
       <div className="bg-white rounded p-2 shadow flex flex-wrap gap-3 items-center min-w-[120px]">
         <button
           className="bg-blue-700 text-white px-4 py-2 rounded"
-          onClick={() => setSelectAllItems(true)}
+          onClick={() => {
+            fetchItems();
+            setSelectAllItems(true);
+          }}
         >
-          {" "}
           Get All
         </button>
         <button
@@ -259,7 +261,11 @@ function App() {
           Clear
         </button>
         {selectAllItems &&
-          items.map((item) => <div key={item.id}>{item.description}</div>)}
+          items.map((item) => (
+            <div key={item.id}>
+              #{item.id} - {item.description}
+            </div>
+          ))}
       </div>
 
       <div className="bg-white rounded p-2 shadow flex flex-wrap gap-3 items-center min-w-[120px]">
